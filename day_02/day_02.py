@@ -1,7 +1,8 @@
 __author__ = "Tofu Gang"
 __email__ = "tofugangsw@gmail.com"
 
-from intcode_computer.intcode_computer import IntcodeComputer
+from intcode_computer.computer import IntcodeComputer
+from typing import Tuple
 
 """
 --- Day 2: 1202 Program Alarm ---
@@ -114,7 +115,11 @@ def puzzle_1() -> None:
     The answer should be 3654868.
     """
 
-    print(_set_and_run(IntcodeComputer(), NOUN, VERB))
+    with open("day_02/input.txt", 'r') as f:
+        program = tuple([int(data.strip())
+                         for data in f.read().strip().split(',')])
+        computer = IntcodeComputer()
+        print(_set_and_run(computer, program, NOUN, VERB))
 
 ################################################################################
 
@@ -171,17 +176,22 @@ def puzzle_2() -> None:
     The answer should be 7014.
     """
 
-    computer = IntcodeComputer()
-    combination = [
-        (noun, verb)
-        for noun in range(NOUN_RANGE)
-        for verb in range(VERB_RANGE)
-        if _set_and_run(computer, noun, verb) == GRAVITY_ASSIST_GOAL][0]
-    print(100 * combination[0] + combination[1])
+    with open("day_02/input.txt", 'r') as f:
+        program = tuple([int(data.strip())
+                         for data in f.read().strip().split(',')])
+        computer = IntcodeComputer()
+        combination = [
+            (noun, verb)
+            for noun in range(NOUN_RANGE)
+            for verb in range(VERB_RANGE)
+            if _set_and_run(computer, program, noun, verb)
+               == GRAVITY_ASSIST_GOAL][0]
+        print(100 * combination[0] + combination[1])
 
 ################################################################################
 
-def _set_and_run(computer: IntcodeComputer, noun: int, verb: int) -> int:
+def _set_and_run(computer: IntcodeComputer, program: Tuple[int],
+                 noun: int, verb: int) -> int:
     """
     Loads program to the given intcode computer, sets the noun and verb in the
     memory and returns the program result.
@@ -192,7 +202,7 @@ def _set_and_run(computer: IntcodeComputer, noun: int, verb: int) -> int:
     :return: program result
     """
 
-    computer.load_program("day_02/input.txt")
+    computer.load_program(program)
     computer.set_data(NOUN_INDEX, noun)
     computer.set_data(VERB_INDEX, verb)
     computer.run_program()
