@@ -118,7 +118,8 @@ def puzzle_1() -> None:
         computer = IntcodeComputer()
         computer.load_program(program)
         computer.load_input(1)
-        computer.run_program()
+        computer.start()
+        computer.join()
         print(computer.get_output())
 
 ################################################################################
@@ -201,7 +202,8 @@ def puzzle_2() -> None:
         computer = IntcodeComputer()
         computer.load_program(program)
         computer.load_input(5)
-        computer.run_program()
+        computer.start()
+        computer.join()
         print(computer.get_output())
 
 ################################################################################

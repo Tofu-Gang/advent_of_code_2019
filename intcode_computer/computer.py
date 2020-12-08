@@ -2,10 +2,11 @@ __author__ = "Tofu Gang"
 __email__ = "tofugangsw@gmail.com"
 
 from typing import List, Tuple
+from threading import Thread, Condition
 
 ################################################################################
 
-class IntcodeComputer(object):
+class IntcodeComputer(Thread):
     OPCODE_ADD = 1
     OPCODE_MULTIPLY = 2
     OPCODE_SAVE_INPUT = 3
@@ -25,12 +26,14 @@ class IntcodeComputer(object):
 
 ################################################################################
 
-    def __init__(self):
+    def __init__(self, output_condition=None):
         """
         Creates the intcode computer instance with undefined memory, instruction
         pointer, input/output memories and jump/exit flag. Maps the correct
         methods to given opcodes.
         """
+
+        super().__init__()
 
         self._instructions = {
             self.OPCODE_ADD: {
@@ -86,6 +89,8 @@ class IntcodeComputer(object):
         self._instruction_pointer = None
         self._exit_flag = None
         self._auto_jump_flag = None
+        self._output_condition = output_condition
+        self._condition = Condition()
 
 ################################################################################
 
@@ -112,11 +117,13 @@ class IntcodeComputer(object):
         :param input_value: input value
         """
 
-        self._input_values.append(input_value)
+        with self._condition:
+            self._input_values.append(input_value)
+            self._condition.notify()
 
 ################################################################################
 
-    def run_program(self) -> None:
+    def run(self) -> None:
         """
         Runs the program loaded in the computer.
         """
@@ -234,6 +241,9 @@ class IntcodeComputer(object):
         """
 
         output_address = self._memory[self._instruction_pointer + 1]
+        with self._condition:
+            if len(self._input_values) == 0:
+                self._condition.wait()
         self._memory[output_address] = self._input_values[0]
         del self._input_values[0]
 
@@ -246,6 +256,12 @@ class IntcodeComputer(object):
 
         param = self._get_instruction_params()[0]
         self._output_values.append(param)
+
+        try:
+            with self._output_condition:
+                self._output_condition.notify()
+        except AttributeError:
+            pass
 
 ################################################################################
 

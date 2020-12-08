@@ -2,7 +2,7 @@ __author__ = "Tofu Gang"
 __email__ = "tofugangsw@gmail.com"
 
 from unittest import TestCase, main
-from intcode_computer.computer import IntcodeComputer
+from intcode_computer.computer import IntcodeComputer, Condition
 from day_02.day_02 import _set_and_run, NOUN, NOUN_RANGE, VERB, VERB_RANGE, \
     GRAVITY_ASSIST_GOAL
 
@@ -115,30 +115,74 @@ class TestStringMethods(TestCase):
         KEY_OUTPUT: [1001]
     }]
 
+    KEY_PHASE_SETTINGS_SEQUENCE = "PHASE_SETTINGS_SEQUENCE"
+    KEY_THRUSTER_SIGNAL = "THRUSTER_SIGNAL"
+
+    TESTS_AMPLIFIERS = [{
+        KEY_FILE_PATH: "tests/test_07_01.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [4, 3, 2, 1, 0],
+        KEY_THRUSTER_SIGNAL: 43210
+    }, {
+        KEY_FILE_PATH: "tests/test_07_02.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [0,1,2,3,4],
+        KEY_THRUSTER_SIGNAL: 54321
+    }, {
+        KEY_FILE_PATH: "tests/test_07_03.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [1,0,4,3,2],
+        KEY_THRUSTER_SIGNAL: 65210
+    }, {
+        KEY_FILE_PATH: "../day_07/input.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [3,1,2,0,4],
+        KEY_THRUSTER_SIGNAL: 14902
+    }]
+
+    TESTS_AMPLIFIERS_FEEDBACK_LOOP = [{
+        KEY_FILE_PATH: "tests/test_07_04.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [9,8,7,6,5],
+        KEY_THRUSTER_SIGNAL: 139629729
+    }, {
+        KEY_FILE_PATH: "tests/test_07_05.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [9,7,8,5,6],
+        KEY_THRUSTER_SIGNAL: 18216
+    }, {
+        KEY_FILE_PATH: "../day_07/input.txt",
+        KEY_INPUT: 0,
+        KEY_PHASE_SETTINGS_SEQUENCE: [9,6,7,5,8],
+        KEY_THRUSTER_SIGNAL: 6489132
+    }]
+
 ################################################################################
 
     def test_whole_memory(self):
-        computer = IntcodeComputer()
         for test in self.TESTS_WHOLE_MEMORY:
             with open(test[self.KEY_FILE_PATH], 'r') as f:
-                program = tuple([int(data.strip())
-                                 for data in f.read().strip().split(',')])
+                program = tuple([
+                    int(data.strip()) for data in f.read().strip().split(',')])
+                computer = IntcodeComputer()
                 computer.load_program(program)
-                computer.run_program()
-                self.assertEqual(computer._memory,
-                                 test[self.KEY_EXPECTED_RESULT])
+                computer.start()
+                computer.join()
+                self.assertEqual(
+                    computer._memory, test[self.KEY_EXPECTED_RESULT])
 
 ################################################################################
 
     def test_output(self):
-        computer = IntcodeComputer()
         for test in self.TESTS_OUTPUT:
             with open(test[self.KEY_FILE_PATH], 'r') as f:
-                program = tuple([int(data.strip())
-                                 for data in f.read().strip().split(',')])
+                program = tuple([
+                    int(data.strip()) for data in f.read().strip().split(',')])
+                computer = IntcodeComputer()
                 computer.load_program(program)
                 [computer.load_input(value) for value in test[self.KEY_INPUT]]
-                computer.run_program()
+                computer.start()
+                computer.join()
                 self.assertTrue(
                     len(test[self.KEY_OUTPUT]) == len(computer.get_output()))
                 self.assertTrue(
@@ -147,13 +191,59 @@ class TestStringMethods(TestCase):
 
 ################################################################################
 
+    def test_amplifiers(self):
+        for test in self.TESTS_AMPLIFIERS:
+            with open(test[self.KEY_FILE_PATH], 'r') as f:
+                program = tuple([
+                    int(data.strip()) for data in f.read().strip().split(',')])
+                input_signal = test[self.KEY_INPUT]
+
+                for setting in test[self.KEY_PHASE_SETTINGS_SEQUENCE]:
+                    computer = IntcodeComputer()
+                    computer.load_program(program)
+                    computer.load_input(setting)
+                    computer.load_input(input_signal)
+                    computer.start()
+                    computer.join()
+                    output_signal = computer.get_output()[-1]
+                    input_signal = output_signal
+                self.assertEqual(output_signal, test[self.KEY_THRUSTER_SIGNAL])
+
+################################################################################
+
+    def test_amplifiers_feedback_loop(self):
+        for test in self.TESTS_AMPLIFIERS:
+            with open(test[self.KEY_FILE_PATH], 'r') as f:
+                program = tuple([
+                    int(data.strip()) for data in f.read().strip().split(',')])
+                input_signal = test[self.KEY_INPUT]
+                phase_settings = test[self.KEY_PHASE_SETTINGS_SEQUENCE]
+                output_condition = Condition()
+                computers = [
+                    IntcodeComputer(output_condition)
+                    for _ in range(len(phase_settings))]
+                [computer.load_program(program) for computer in computers]
+                [computers[i].load_input(phase_settings[i])
+                 for i in range(len(phase_settings))]
+                [computer.start() for computer in computers]
+
+                while any([computer.is_alive() for computer in computers]):
+                    for computer in computers:
+                        with output_condition:
+                            computer.load_input(input_signal)
+                            output_condition.wait()
+                        input_signal = computer.get_output()[-1]
+
+                output_signal = computers[-1].get_output()[-1]
+                self.assertEqual(output_signal, test[self.KEY_THRUSTER_SIGNAL])
+
+################################################################################
+
     def test_day_02_puzzle_1(self):
         with open("../day_02/input.txt", 'r') as f:
             program = tuple([int(data.strip())
                              for data in f.read().strip().split(',')])
-            computer = IntcodeComputer()
-            self.assertEqual(_set_and_run(computer, program, NOUN, VERB),
-                             3654868)
+            self.assertEqual(_set_and_run(program, NOUN, VERB), 3654868)
 
 ################################################################################
 
@@ -161,13 +251,11 @@ class TestStringMethods(TestCase):
         with open("../day_02/input.txt", 'r') as f:
             program = tuple([int(data.strip())
                              for data in f.read().strip().split(',')])
-            computer = IntcodeComputer()
             combination = [
                 (noun, verb)
                 for noun in range(NOUN_RANGE)
                 for verb in range(VERB_RANGE)
-                if _set_and_run(computer, program, noun, verb)
-                   == GRAVITY_ASSIST_GOAL][0]
+                if _set_and_run(program, noun, verb) == GRAVITY_ASSIST_GOAL][0]
             self.assertEqual(100 * combination[0] + combination[1], 7014)
 
 ################################################################################
@@ -179,7 +267,8 @@ class TestStringMethods(TestCase):
             computer = IntcodeComputer()
             computer.load_program(program)
             computer.load_input(1)
-            computer.run_program()
+            computer.start()
+            computer.join()
             output = computer.get_output()
             self.assertTrue(all([value == 0 for value in output[:-1]]))
             self.assertEqual(output[-1], 14522484)
@@ -193,7 +282,8 @@ class TestStringMethods(TestCase):
             computer = IntcodeComputer()
             computer.load_program(program)
             computer.load_input(5)
-            computer.run_program()
+            computer.start()
+            computer.join()
             self.assertEqual(computer.get_output()[0], 4655956)
 
 ################################################################################

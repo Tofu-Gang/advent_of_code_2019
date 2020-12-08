@@ -118,8 +118,7 @@ def puzzle_1() -> None:
     with open("day_02/input.txt", 'r') as f:
         program = tuple([int(data.strip())
                          for data in f.read().strip().split(',')])
-        computer = IntcodeComputer()
-        print(_set_and_run(computer, program, NOUN, VERB))
+        print(_set_and_run(program, NOUN, VERB))
 
 ################################################################################
 
@@ -179,33 +178,32 @@ def puzzle_2() -> None:
     with open("day_02/input.txt", 'r') as f:
         program = tuple([int(data.strip())
                          for data in f.read().strip().split(',')])
-        computer = IntcodeComputer()
         combination = [
             (noun, verb)
             for noun in range(NOUN_RANGE)
             for verb in range(VERB_RANGE)
-            if _set_and_run(computer, program, noun, verb)
+            if _set_and_run(program, noun, verb)
                == GRAVITY_ASSIST_GOAL][0]
         print(100 * combination[0] + combination[1])
 
 ################################################################################
 
-def _set_and_run(computer: IntcodeComputer, program: Tuple[int],
-                 noun: int, verb: int) -> int:
+def _set_and_run(program: Tuple[int], noun: int, verb: int) -> int:
     """
     Loads program to the given intcode computer, sets the noun and verb in the
     memory and returns the program result.
 
-    :param computer: intcode computer to run the program on
     :param noun: noun
     :param verb: verb
     :return: program result
     """
 
+    computer = IntcodeComputer()
     computer.load_program(program)
     computer.set_data(NOUN_INDEX, noun)
     computer.set_data(VERB_INDEX, verb)
-    computer.run_program()
+    computer.start()
+    computer.join()
     return computer.get_data(0)
 
 ################################################################################
